@@ -124,9 +124,10 @@ Useful knobs:
 - `GHOST_USB_SERIAL`, passed to CMake as the HID USB serial string
 - `GHOST_ACTIVITY_LED_PULSE_MS`
 
-The default profile sends mouse activity and a brief Space key press after each
-mouse activity burst. Keep in mind the key press goes to whichever host window
-is focused.
+The default profile sends mouse activity and a brief random keyboard action
+after each mouse activity burst. The current key action set is Space, Escape,
+Tab, Alt+Tab, Windows/Super, Shift+Tab, and Ctrl+Esc. Keep in mind the key
+press goes to whichever host window is focused.
 
 The default USB serial is `fedcba9876543210`, matching the original GhostHID
 fallback value. You can override it at configure time:

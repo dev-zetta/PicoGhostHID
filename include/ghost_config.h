@@ -21,6 +21,8 @@
 #define GHOST_JITTER_DELAY_MS      (100u)
 
 #define GHOST_ACTIVITY_LED_PULSE_MS (80u)
+#define GHOST_KEY_MIN_HOLD_MS      (40u)
+#define GHOST_KEY_MAX_HOLD_MS      (120u)
 
 typedef enum {
     GHOST_PROFILE_MOUSE_ONLY = 0,

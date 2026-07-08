@@ -18,6 +18,21 @@ typedef enum {
     ACTION_NUDGE
 } ghost_action_t;
 
+typedef struct {
+    uint8_t modifier;
+    uint8_t keycode;
+} ghost_key_action_t;
+
+static const ghost_key_action_t key_actions[] = {
+    {0, HID_KEY_SPACE},
+    {0, HID_KEY_ESCAPE},
+    {0, HID_KEY_TAB},
+    {KEYBOARD_MODIFIER_LEFTALT, HID_KEY_TAB},
+    {KEYBOARD_MODIFIER_LEFTGUI, 0},
+    {KEYBOARD_MODIFIER_LEFTSHIFT, HID_KEY_TAB},
+    {KEYBOARD_MODIFIER_LEFTCTRL, HID_KEY_ESCAPE},
+};
+
 static absolute_time_t activity_led_off_at;
 static bool activity_led_active = false;
 static uint32_t synced_seconds_of_day = 0;
@@ -282,13 +297,13 @@ static bool send_mouse_report(int8_t x, int8_t y, int8_t wheel) {
     return true;
 }
 
-static bool send_keyboard_key(uint8_t modifier, uint8_t keycode) {
+static bool send_keyboard_action(ghost_key_action_t action) {
     if (!tud_mounted() || !tud_hid_ready()) {
         return false;
     }
 
-    uint8_t keycodes[6] = {keycode, 0, 0, 0, 0, 0};
-    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifier, keycodes);
+    uint8_t keycodes[6] = {action.keycode, 0, 0, 0, 0, 0};
+    tud_hid_keyboard_report(REPORT_ID_KEYBOARD, action.modifier, keycodes);
     activity_led_pulse();
     return true;
 }
@@ -306,6 +321,16 @@ static void usb_sleep_ms(uint32_t duration_ms) {
         tud_task();
         activity_led_task();
         sleep_ms(1);
+    }
+}
+
+static void send_random_keyboard_action(void) {
+    size_t action_count = sizeof(key_actions) / sizeof(key_actions[0]);
+    ghost_key_action_t action = key_actions[ghost_rand_32() % action_count];
+
+    if (send_keyboard_action(action)) {
+        usb_sleep_ms(clamp_delay(GHOST_KEY_MIN_HOLD_MS, GHOST_KEY_MAX_HOLD_MS));
+        release_keyboard();
     }
 }
 
@@ -381,9 +406,7 @@ static void simulate_activity(void) {
     }
 
     if (GHOST_DEFAULT_PROFILE == GHOST_PROFILE_MOUSE_AND_KEYBOARD) {
-        send_keyboard_key(0, HID_KEY_SPACE);
-        usb_sleep_ms(clamp_delay(40, 120));
-        release_keyboard();
+        send_random_keyboard_action();
     }
 }
 
