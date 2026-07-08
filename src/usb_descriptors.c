@@ -7,6 +7,10 @@
 #define USB_PID 0xc31c
 #define USB_BCD 0x0100
 
+#ifndef GHOST_USB_SERIAL
+#define GHOST_USB_SERIAL "fedcba9876543210"
+#endif
+
 enum {
     ITF_NUM_HID,
     ITF_NUM_TOTAL
@@ -65,7 +69,7 @@ char const *string_desc_arr[] = {
     (const char[]){0x09, 0x04},
     "Logitech",
     "USB Keyboard/Mouse Combo",
-    "PicoGhostHID-0001",
+    GHOST_USB_SERIAL,
 };
 
 static uint16_t string_desc[32];

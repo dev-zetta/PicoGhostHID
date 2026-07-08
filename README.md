@@ -110,9 +110,18 @@ Useful knobs:
 - `GHOST_MIN_IDLE_MS`
 - `GHOST_MAX_IDLE_MS`
 - `GHOST_DEFAULT_PROFILE`
+- `GHOST_USB_SERIAL`, passed to CMake as the HID USB serial string
 
 The default profile is mouse-only so the firmware does not type into whichever
 host window is focused.
+
+The default USB serial is `fedcba9876543210`, matching the original GhostHID
+fallback value. You can override it at configure time:
+
+```sh
+cmake -E rm -rf build
+GHOST_USB_SERIAL=0123456789abcdef ./scripts/build.sh
+```
 
 ## Project Layout
 

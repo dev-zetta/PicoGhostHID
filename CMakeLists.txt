@@ -9,9 +9,15 @@ project(PicoGhostHID C CXX ASM)
 
 pico_sdk_init()
 
+set(GHOST_USB_SERIAL "fedcba9876543210" CACHE STRING "USB serial number string exposed by the HID device")
+
 add_executable(PicoGhostHID
     src/main.c
     src/usb_descriptors.c
+)
+
+target_compile_definitions(PicoGhostHID PRIVATE
+    GHOST_USB_SERIAL="${GHOST_USB_SERIAL}"
 )
 
 target_include_directories(PicoGhostHID PRIVATE

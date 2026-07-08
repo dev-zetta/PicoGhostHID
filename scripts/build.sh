@@ -35,7 +35,12 @@ if [[ -z "${PICO_SDK_PATH:-}" ]]; then
     fi
 fi
 
-cmake -S "${project_dir}" -B "${build_dir}"
+cmake_args=()
+if [[ -n "${GHOST_USB_SERIAL:-}" ]]; then
+    cmake_args+=("-DGHOST_USB_SERIAL=${GHOST_USB_SERIAL}")
+fi
+
+cmake -S "${project_dir}" -B "${build_dir}" "${cmake_args[@]}"
 cmake --build "${build_dir}"
 
 echo
