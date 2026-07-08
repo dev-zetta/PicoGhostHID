@@ -14,6 +14,8 @@
 #define GHOST_MOVE_STEPS           (50u)
 #define GHOST_STEP_MIN_DELAY_MS    (8u)
 #define GHOST_STEP_MAX_DELAY_MS    (15u)
+#define GHOST_MOVE_CONTROL_JITTER  (20)
+#define GHOST_MOVE_WOBBLE_MAX      (3)
 
 #define GHOST_JITTER_STEPS         (5u)
 #define GHOST_JITTER_DELAY_MS      (100u)

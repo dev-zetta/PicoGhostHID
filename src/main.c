@@ -264,6 +264,14 @@ static int8_t clamp_i8(int value) {
     return (int8_t)value;
 }
 
+static int round_to_i32(float value) {
+    return (int)(value >= 0.0f ? value + 0.5f : value - 0.5f);
+}
+
+static float smoothstep(float t) {
+    return t * t * (3.0f - 2.0f * t);
+}
+
 static bool send_mouse_report(int8_t x, int8_t y, int8_t wheel) {
     if (!tud_mounted() || !tud_hid_ready()) {
         return false;
@@ -302,24 +310,42 @@ static void usb_sleep_ms(uint32_t duration_ms) {
 }
 
 static void move_mouse_humanly(int dest_x, int dest_y) {
-    int control_x = dest_x / 2 + random_range(-20, 20);
-    int control_y = dest_y / 2 + random_range(-20, 20);
-    int last_x = 0;
-    int last_y = 0;
+    float control_x = (float)dest_x * 0.5f +
+                      (float)random_range(-GHOST_MOVE_CONTROL_JITTER, GHOST_MOVE_CONTROL_JITTER);
+    float control_y = (float)dest_y * 0.5f +
+                      (float)random_range(-GHOST_MOVE_CONTROL_JITTER, GHOST_MOVE_CONTROL_JITTER);
+    int sent_x = 0;
+    int sent_y = 0;
+
+    int wobble = random_range(-GHOST_MOVE_WOBBLE_MAX, GHOST_MOVE_WOBBLE_MAX);
+    bool wobble_on_x = abs(dest_y) >= abs(dest_x);
+    float wobble_x = wobble_on_x ? (float)wobble : 0.0f;
+    float wobble_y = wobble_on_x ? 0.0f : (float)wobble;
 
     for (uint32_t step = 1; step <= GHOST_MOVE_STEPS; step++) {
-        float t = (float)step / (float)GHOST_MOVE_STEPS;
+        float raw_t = (float)step / (float)GHOST_MOVE_STEPS;
+        float t = smoothstep(raw_t);
         float inv_t = 1.0f - t;
-        int target_x = (int)((inv_t * inv_t * 0.0f) +
-                             (2.0f * inv_t * t * (float)control_x) +
-                             (t * t * (float)dest_x));
-        int target_y = (int)((inv_t * inv_t * 0.0f) +
-                             (2.0f * inv_t * t * (float)control_y) +
-                             (t * t * (float)dest_y));
 
-        send_mouse_report(clamp_i8(target_x - last_x), clamp_i8(target_y - last_y), 0);
-        last_x = target_x;
-        last_y = target_y;
+        float target_x = (2.0f * inv_t * t * control_x) + (t * t * (float)dest_x);
+        float target_y = (2.0f * inv_t * t * control_y) + (t * t * (float)dest_y);
+
+        float wobble_envelope = raw_t * (1.0f - raw_t) * 4.0f;
+        target_x += wobble_x * wobble_envelope;
+        target_y += wobble_y * wobble_envelope;
+
+        int rounded_x = round_to_i32(target_x);
+        int rounded_y = round_to_i32(target_y);
+        int delta_x = rounded_x - sent_x;
+        int delta_y = rounded_y - sent_y;
+
+        if (delta_x != 0 || delta_y != 0) {
+            int8_t report_x = clamp_i8(delta_x);
+            int8_t report_y = clamp_i8(delta_y);
+            send_mouse_report(report_x, report_y, 0);
+            sent_x += report_x;
+            sent_y += report_y;
+        }
         usb_sleep_ms(clamp_delay(GHOST_STEP_MIN_DELAY_MS, GHOST_STEP_MAX_DELAY_MS));
     }
 }
