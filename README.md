@@ -31,6 +31,31 @@ RTC module.
 
 ## Build
 
+### Prerequisites
+
+On Ubuntu/Debian, install the Pico build tools and ARM embedded compiler
+system-wide:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y \
+  build-essential \
+  cmake \
+  git \
+  python3 \
+  gcc-arm-none-eabi \
+  binutils-arm-none-eabi \
+  libnewlib-arm-none-eabi \
+  libnewlib-dev
+```
+
+If CMake needs to build `picotool` from source on your machine, these packages
+may also be required:
+
+```sh
+sudo apt-get install -y pkg-config libusb-1.0-0-dev
+```
+
 This project uses the official Raspberry Pi Pico C/C++ SDK:
 
 ```text
