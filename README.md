@@ -102,6 +102,13 @@ cmake -E rm -rf build/pico2
 To flash it, hold the Pico `BOOTSEL` button while plugging it in, then copy the
 UF2 file to the mounted `RPI-RP2` drive.
 
+Or use the upload wrappers:
+
+```sh
+./scripts/upload_pico1.sh
+./scripts/upload_pico2.sh
+```
+
 ## Configuration
 
 Edit `include/ghost_config.h` before building.
