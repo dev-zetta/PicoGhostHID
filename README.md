@@ -126,6 +126,33 @@ cmake -E rm -rf build
 GHOST_USB_SERIAL=0123456789abcdef ./scripts/build_pico2.sh
 ```
 
+## USB Time And Schedule Config
+
+The firmware accepts volatile time/schedule configuration through a
+vendor-defined HID feature report on the existing keyboard/mouse HID interface.
+It does not add a USB serial port.
+
+Sync local host time and enable a 09:00-17:00 window with a 12:00 lunch break:
+
+```sh
+tools/picoghost_config.py configure --start 09:00 --end 17:00 --lunch 12:00 --lunch-duration 60
+```
+
+Read current status:
+
+```sh
+tools/picoghost_config.py status
+```
+
+Disable the schedule and return to always-active behavior while mounted:
+
+```sh
+tools/picoghost_config.py set-schedule --no-enable
+```
+
+The Pico has no battery-backed clock by default, so time and schedule state are
+lost after reset or unplug.
+
 ## Project Layout
 
 ```text
@@ -134,17 +161,20 @@ PicoGhostHID/
   pico_sdk_import.cmake
   include/
     ghost_config.h
+    ghost_runtime.h
     tusb_config.h
     usb_descriptors.h
   src/
     main.c
     usb_descriptors.c
+  tools/
+    picoghost_config.py
 ```
 
 ## Next Steps
 
 - Add a physical enable/disable button.
 - Add flash-backed configuration.
-- Add host-side config tooling that writes settings over USB vendor or CDC.
-- Add optional RTC-backed shift/lunch scheduling.
+- Add persistent schedule configuration.
+- Add optional external RTC support for timekeeping across unplug/reset.
 - Split keyboard text generation into a separate, opt-in behavior module.

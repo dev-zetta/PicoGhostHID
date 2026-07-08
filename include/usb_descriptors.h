@@ -4,6 +4,9 @@
 enum {
     REPORT_ID_KEYBOARD = 1,
     REPORT_ID_MOUSE = 2,
+    REPORT_ID_CONFIG = 3,
 };
+
+#define GHOST_CONFIG_FEATURE_SIZE 63
 
 #endif

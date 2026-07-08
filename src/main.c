@@ -9,6 +9,7 @@
 #include "tusb.h"
 
 #include "ghost_config.h"
+#include "ghost_runtime.h"
 #include "usb_descriptors.h"
 
 typedef enum {
@@ -19,6 +20,201 @@ typedef enum {
 
 static absolute_time_t activity_led_off_at;
 static bool activity_led_active = false;
+static uint32_t synced_seconds_of_day = 0;
+static uint64_t synced_at_us = 0;
+
+typedef struct {
+    bool time_valid;
+    bool schedule_enabled;
+    uint16_t active_start_minute;
+    uint16_t active_end_minute;
+    uint16_t lunch_start_minute;
+    uint16_t lunch_duration_minutes;
+} ghost_runtime_config_t;
+
+static ghost_runtime_config_t runtime_config = {
+    .time_valid = false,
+    .schedule_enabled = false,
+    .active_start_minute = 9u * 60u,
+    .active_end_minute = 17u * 60u,
+    .lunch_start_minute = 12u * 60u,
+    .lunch_duration_minutes = 60u,
+};
+
+enum {
+    CONFIG_CMD_SET_TIME = 1,
+    CONFIG_CMD_SET_SCHEDULE = 2,
+    CONFIG_CMD_SET_TIME_AND_SCHEDULE = 3,
+    CONFIG_STATUS_RESPONSE = 0x80,
+};
+
+static uint16_t read_le16(uint8_t const *buffer) {
+    return (uint16_t)buffer[0] | ((uint16_t)buffer[1] << 8u);
+}
+
+static void write_le16(uint8_t *buffer, uint16_t value) {
+    buffer[0] = (uint8_t)(value & 0xffu);
+    buffer[1] = (uint8_t)(value >> 8u);
+}
+
+static bool valid_minute(uint16_t minute) {
+    return minute < (24u * 60u);
+}
+
+static bool minute_in_window(uint16_t minute, uint16_t start, uint16_t end) {
+    if (start <= end) {
+        return minute >= start && minute <= end;
+    }
+    return minute >= start || minute <= end;
+}
+
+static bool minute_in_span(uint16_t minute, uint16_t start, uint16_t duration) {
+    if (duration == 0u) {
+        return false;
+    }
+    if (duration >= 24u * 60u) {
+        return true;
+    }
+
+    uint16_t end = (uint16_t)((start + duration) % (24u * 60u));
+    if (start < end) {
+        return minute >= start && minute < end;
+    }
+    return minute >= start || minute < end;
+}
+
+static uint32_t current_seconds_of_day(void) {
+    if (!runtime_config.time_valid) {
+        return 0;
+    }
+
+    uint64_t elapsed_seconds = (time_us_64() - synced_at_us) / 1000000u;
+    return (uint32_t)((synced_seconds_of_day + elapsed_seconds) % (24u * 60u * 60u));
+}
+
+static bool set_time_from_report(uint8_t const *buffer, uint16_t bufsize) {
+    if (bufsize < 13u) {
+        return false;
+    }
+
+    uint16_t year = read_le16(&buffer[6]);
+    uint8_t month = buffer[8];
+    uint8_t day = buffer[9];
+    uint8_t hour = buffer[10];
+    uint8_t minute = buffer[11];
+    uint8_t second = buffer[12];
+
+    if (year < 2024u || year > 2099u || month < 1u || month > 12u ||
+        day < 1u || day > 31u || hour > 23u || minute > 59u || second > 59u) {
+        return false;
+    }
+
+    synced_seconds_of_day = (uint32_t)hour * 3600u + (uint32_t)minute * 60u + second;
+    synced_at_us = time_us_64();
+    runtime_config.time_valid = true;
+    return true;
+}
+
+static bool set_schedule_from_report(uint8_t const *buffer, uint16_t offset, uint16_t bufsize) {
+    if (bufsize < offset + 9u) {
+        return false;
+    }
+
+    bool enabled = buffer[offset] != 0u;
+    uint16_t active_start = read_le16(&buffer[offset + 1u]);
+    uint16_t active_end = read_le16(&buffer[offset + 3u]);
+    uint16_t lunch_start = read_le16(&buffer[offset + 5u]);
+    uint16_t lunch_duration = read_le16(&buffer[offset + 7u]);
+
+    if (!valid_minute(active_start) || !valid_minute(active_end) ||
+        !valid_minute(lunch_start) || lunch_duration > 24u * 60u) {
+        return false;
+    }
+
+    runtime_config.schedule_enabled = enabled;
+    runtime_config.active_start_minute = active_start;
+    runtime_config.active_end_minute = active_end;
+    runtime_config.lunch_start_minute = lunch_start;
+    runtime_config.lunch_duration_minutes = lunch_duration;
+    return true;
+}
+
+static bool schedule_allows_activity(void) {
+    if (!runtime_config.schedule_enabled) {
+        return true;
+    }
+    if (!runtime_config.time_valid) {
+        return false;
+    }
+
+    uint16_t minute = (uint16_t)(current_seconds_of_day() / 60u);
+    if (!minute_in_window(minute, runtime_config.active_start_minute,
+                          runtime_config.active_end_minute)) {
+        return false;
+    }
+    if (minute_in_span(minute, runtime_config.lunch_start_minute,
+                       runtime_config.lunch_duration_minutes)) {
+        return false;
+    }
+
+    return true;
+}
+
+void ghost_handle_feature_report(uint8_t const *buffer, uint16_t bufsize) {
+    if (bufsize < 6u || memcmp(buffer, "PGHC", 4u) != 0 || buffer[4] != 1u) {
+        return;
+    }
+
+    switch (buffer[5]) {
+        case CONFIG_CMD_SET_TIME:
+            (void)set_time_from_report(buffer, bufsize);
+            break;
+        case CONFIG_CMD_SET_SCHEDULE:
+            (void)set_schedule_from_report(buffer, 6u, bufsize);
+            break;
+        case CONFIG_CMD_SET_TIME_AND_SCHEDULE:
+            if (set_time_from_report(buffer, bufsize)) {
+                (void)set_schedule_from_report(buffer, 13u, bufsize);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+uint16_t ghost_fill_feature_report(uint8_t *buffer, uint16_t reqlen) {
+    if (reqlen < GHOST_CONFIG_FEATURE_SIZE) {
+        return 0;
+    }
+
+    memset(buffer, 0, GHOST_CONFIG_FEATURE_SIZE);
+    memcpy(buffer, "PGHC", 4u);
+    buffer[4] = 1u;
+    buffer[5] = CONFIG_STATUS_RESPONSE;
+
+    bool active = schedule_allows_activity();
+    buffer[6] = (runtime_config.time_valid ? 0x01u : 0u) |
+                (runtime_config.schedule_enabled ? 0x02u : 0u) |
+                (active ? 0x04u : 0u);
+
+    if (runtime_config.time_valid) {
+        uint32_t seconds = current_seconds_of_day();
+        buffer[7] = (uint8_t)(seconds / 3600u);
+        buffer[8] = (uint8_t)((seconds / 60u) % 60u);
+        buffer[9] = (uint8_t)(seconds % 60u);
+    } else {
+        buffer[7] = 0xffu;
+        buffer[8] = 0xffu;
+        buffer[9] = 0xffu;
+    }
+
+    write_le16(&buffer[10], runtime_config.active_start_minute);
+    write_le16(&buffer[12], runtime_config.active_end_minute);
+    write_le16(&buffer[14], runtime_config.lunch_start_minute);
+    write_le16(&buffer[16], runtime_config.lunch_duration_minutes);
+
+    return GHOST_CONFIG_FEATURE_SIZE;
+}
 
 static void activity_led_pulse(void) {
     board_led_write(true);
@@ -175,7 +371,7 @@ int main(void) {
         tud_task();
         activity_led_task();
 
-        if (tud_mounted()) {
+        if (tud_mounted() && schedule_allows_activity()) {
             simulate_activity();
             usb_sleep_ms(clamp_delay(GHOST_MIN_IDLE_MS, GHOST_MAX_IDLE_MS));
         } else {

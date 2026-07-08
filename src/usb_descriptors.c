@@ -1,4 +1,5 @@
 #include "tusb.h"
+#include "ghost_runtime.h"
 #include "usb_descriptors.h"
 
 #include <string.h>
@@ -22,7 +23,19 @@ enum {
 
 uint8_t const desc_hid_report[] = {
     TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(REPORT_ID_KEYBOARD)),
-    TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(REPORT_ID_MOUSE))
+    TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(REPORT_ID_MOUSE)),
+
+    0x06, 0x00, 0xff,                         // Usage Page (Vendor Defined)
+    0x09, 0x01,                               // Usage (1)
+    0xa1, 0x01,                               // Collection (Application)
+    0x85, REPORT_ID_CONFIG,                   //   Report ID
+    0x09, 0x02,                               //   Usage (2)
+    0x15, 0x00,                               //   Logical Minimum (0)
+    0x26, 0xff, 0x00,                         //   Logical Maximum (255)
+    0x75, 0x08,                               //   Report Size (8)
+    0x95, GHOST_CONFIG_FEATURE_SIZE,          //   Report Count
+    0xb1, 0x02,                               //   Feature (Data, Variable, Absolute)
+    0xc0                                      // End Collection
 };
 
 tusb_desc_device_t const desc_device = {
@@ -105,19 +118,20 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
                            hid_report_type_t report_type, uint8_t const *buffer,
                            uint16_t bufsize) {
     (void)instance;
-    (void)report_id;
-    (void)report_type;
-    (void)buffer;
-    (void)bufsize;
+
+    if (report_id == REPORT_ID_CONFIG && report_type == HID_REPORT_TYPE_FEATURE) {
+        ghost_handle_feature_report(buffer, bufsize);
+    }
 }
 
 uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
                                hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
     (void)instance;
-    (void)report_id;
-    (void)report_type;
-    (void)buffer;
-    (void)reqlen;
+
+    if (report_id == REPORT_ID_CONFIG && report_type == HID_REPORT_TYPE_FEATURE) {
+        return ghost_fill_feature_report(buffer, reqlen);
+    }
+
     return 0;
 }
