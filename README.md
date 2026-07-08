@@ -31,7 +31,27 @@ RTC module.
 
 ## Build
 
-Install or clone the Raspberry Pi Pico SDK, then configure with `PICO_SDK_PATH`:
+This project uses the official Raspberry Pi Pico C/C++ SDK:
+
+```text
+https://github.com/raspberrypi/pico-sdk
+```
+
+Fetch a local SDK checkout, then build:
+
+```sh
+./scripts/fetch_sdk.sh
+./scripts/build.sh
+```
+
+By default, `fetch_sdk.sh` checks out SDK release `2.3.0` into
+`deps/pico-sdk`. To use another release or branch:
+
+```sh
+PICO_SDK_VERSION=master ./scripts/fetch_sdk.sh
+```
+
+You can also skip `deps/pico-sdk` and point at an existing SDK checkout:
 
 ```sh
 export PICO_SDK_PATH=/path/to/pico-sdk
