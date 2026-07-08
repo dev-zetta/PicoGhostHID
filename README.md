@@ -89,6 +89,14 @@ The firmware will be produced as:
 build/PicoGhostHID.uf2
 ```
 
+If CMake was previously configured with a different compiler or toolchain path,
+regenerate the build directory before building again:
+
+```sh
+cmake -E rm -rf build
+./scripts/build.sh
+```
+
 To flash it, hold the Pico `BOOTSEL` button while plugging it in, then copy the
 UF2 file to the mounted `RPI-RP2` drive.
 
