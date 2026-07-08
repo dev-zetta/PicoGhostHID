@@ -17,6 +17,22 @@ typedef enum {
     ACTION_NUDGE
 } ghost_action_t;
 
+static absolute_time_t activity_led_off_at;
+static bool activity_led_active = false;
+
+static void activity_led_pulse(void) {
+    board_led_write(true);
+    activity_led_active = true;
+    activity_led_off_at = make_timeout_time_ms(GHOST_ACTIVITY_LED_PULSE_MS);
+}
+
+static void activity_led_task(void) {
+    if (activity_led_active && time_reached(activity_led_off_at)) {
+        board_led_write(false);
+        activity_led_active = false;
+    }
+}
+
 static uint32_t ghost_rand_32(void) {
     uint32_t value = 0;
     for (uint32_t i = 0; i < 32; i++) {
@@ -58,6 +74,7 @@ static bool send_mouse_report(int8_t x, int8_t y, int8_t wheel) {
     }
 
     tud_hid_mouse_report(REPORT_ID_MOUSE, 0, x, y, wheel, 0);
+    activity_led_pulse();
     return true;
 }
 
@@ -68,12 +85,14 @@ static bool send_keyboard_key(uint8_t modifier, uint8_t keycode) {
 
     uint8_t keycodes[6] = {keycode, 0, 0, 0, 0, 0};
     tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifier, keycodes);
+    activity_led_pulse();
     return true;
 }
 
 static void release_keyboard(void) {
     if (tud_mounted() && tud_hid_ready()) {
         tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
+        activity_led_pulse();
     }
 }
 
@@ -81,6 +100,7 @@ static void usb_sleep_ms(uint32_t duration_ms) {
     absolute_time_t deadline = make_timeout_time_ms(duration_ms);
     while (!time_reached(deadline)) {
         tud_task();
+        activity_led_task();
         sleep_ms(1);
     }
 }
@@ -153,6 +173,7 @@ int main(void) {
 
     while (true) {
         tud_task();
+        activity_led_task();
 
         if (tud_mounted()) {
             simulate_activity();

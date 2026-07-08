@@ -18,6 +18,8 @@
 #define GHOST_JITTER_STEPS         (5u)
 #define GHOST_JITTER_DELAY_MS      (100u)
 
+#define GHOST_ACTIVITY_LED_PULSE_MS (80u)
+
 typedef enum {
     GHOST_PROFILE_MOUSE_ONLY = 0,
     GHOST_PROFILE_MOUSE_AND_KEYBOARD = 1,

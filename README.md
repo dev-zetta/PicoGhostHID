@@ -111,6 +111,7 @@ Useful knobs:
 - `GHOST_MAX_IDLE_MS`
 - `GHOST_DEFAULT_PROFILE`
 - `GHOST_USB_SERIAL`, passed to CMake as the HID USB serial string
+- `GHOST_ACTIVITY_LED_PULSE_MS`
 
 The default profile is mouse-only so the firmware does not type into whichever
 host window is focused.
