@@ -66,7 +66,8 @@ Fetch a local SDK checkout, then build:
 
 ```sh
 ./scripts/fetch_sdk.sh
-./scripts/build.sh
+./scripts/build_pico1.sh
+./scripts/build_pico2.sh
 ```
 
 By default, `fetch_sdk.sh` checks out SDK release `2.3.0` into
@@ -80,21 +81,22 @@ You can also skip `deps/pico-sdk` and point at an existing SDK checkout:
 
 ```sh
 export PICO_SDK_PATH=/path/to/pico-sdk
-./scripts/build.sh
+./scripts/build_pico2.sh
 ```
 
-The firmware will be produced as:
+The firmware will be produced as one of:
 
 ```text
-build/PicoGhostHID.uf2
+build/pico1/PicoGhostHID.uf2
+build/pico2/PicoGhostHID.uf2
 ```
 
 If CMake was previously configured with a different compiler or toolchain path,
-regenerate the build directory before building again:
+regenerate the relevant build directory before building again:
 
 ```sh
-cmake -E rm -rf build
-./scripts/build.sh
+cmake -E rm -rf build/pico2
+./scripts/build_pico2.sh
 ```
 
 To flash it, hold the Pico `BOOTSEL` button while plugging it in, then copy the
@@ -121,7 +123,7 @@ fallback value. You can override it at configure time:
 
 ```sh
 cmake -E rm -rf build
-GHOST_USB_SERIAL=0123456789abcdef ./scripts/build.sh
+GHOST_USB_SERIAL=0123456789abcdef ./scripts/build_pico2.sh
 ```
 
 ## Project Layout

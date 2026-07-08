@@ -3,15 +3,31 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_dir="$(cd "${script_dir}/.." && pwd)"
-build_dir="${project_dir}/build"
+board="${1:-}"
+
+if [[ "${board}" != "pico" && "${board}" != "pico2" ]]; then
+    echo "usage: ${0} <pico|pico2>" >&2
+    exit 2
+fi
+
+case "${board}" in
+    pico)
+        build_name="pico1"
+        ;;
+    pico2)
+        build_name="pico2"
+        ;;
+esac
+
+build_dir="${project_dir}/build/${build_name}"
 local_sdk_dir="${project_dir}/deps/pico-sdk"
 local_toolchain_dir="${project_dir}/deps/toolchain"
 
 if [[ -f "${build_dir}/CMakeCache.txt" ]] && grep -Fq "${local_toolchain_dir}" "${build_dir}/CMakeCache.txt"; then
-    echo "error: build/CMakeCache.txt is pinned to the old local deps/toolchain compiler." >&2
+    echo "error: ${build_dir}/CMakeCache.txt is pinned to the old local deps/toolchain compiler." >&2
     echo "Install gcc-arm-none-eabi system-wide, then regenerate the build directory:" >&2
-    echo "  cmake -E rm -rf build" >&2
-    echo "  ./scripts/build.sh" >&2
+    echo "  cmake -E rm -rf ${build_dir}" >&2
+    echo "  ./scripts/build_${build_name}.sh" >&2
     exit 1
 fi
 
@@ -40,7 +56,7 @@ if [[ -n "${GHOST_USB_SERIAL:-}" ]]; then
     cmake_args+=("-DGHOST_USB_SERIAL=${GHOST_USB_SERIAL}")
 fi
 
-cmake -S "${project_dir}" -B "${build_dir}" "${cmake_args[@]}"
+cmake -S "${project_dir}" -B "${build_dir}" -DPICO_BOARD="${board}" "${cmake_args[@]}"
 cmake --build "${build_dir}"
 
 echo
