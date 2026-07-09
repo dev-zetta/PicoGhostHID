@@ -197,6 +197,7 @@ lost after reset or unplug.
 ```text
 PicoGhostHID/
   CMakeLists.txt
+  LICENSE
   pico_sdk_import.cmake
   include/
     ghost_config.h
@@ -209,6 +210,11 @@ PicoGhostHID/
   tools/
     picoghost_config.py
 ```
+
+## License
+
+PicoGhostHID is licensed under the GNU General Public License version 3 or
+later. See `LICENSE` for the full license text.
 
 ## Next Steps
 
