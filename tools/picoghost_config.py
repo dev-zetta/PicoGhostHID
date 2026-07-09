@@ -117,6 +117,7 @@ def read_status(device):
         "time_valid": bool(flags & 0x01),
         "schedule_enabled": bool(flags & 0x02),
         "activity_allowed": bool(flags & 0x04),
+        "paused": bool(flags & 0x08),
         "current_time": current,
         "active_start": active_start,
         "active_end": active_end,
@@ -156,6 +157,7 @@ def print_status(status):
     print(f"time_valid={status['time_valid']}")
     print(f"schedule_enabled={status['schedule_enabled']}")
     print(f"activity_allowed={status['activity_allowed']}")
+    print(f"paused={status['paused']}")
     print(f"current_time={status['current_time'] or 'unset'}")
     print(f"active={fmt_hhmm(status['active_start'])}-{fmt_hhmm(status['active_end'])}")
     print(

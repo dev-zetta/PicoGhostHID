@@ -4,7 +4,10 @@
 #include <string.h>
 
 #include "bsp/board.h"
+#include "hardware/sync.h"
+#include "hardware/structs/ioqspi.h"
 #include "hardware/structs/rosc.h"
+#include "hardware/structs/sio.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
 
@@ -35,6 +38,10 @@ static const ghost_key_action_t key_actions[] = {
 
 static absolute_time_t activity_led_off_at;
 static bool activity_led_active = false;
+static bool ghost_paused = false;
+static bool bootsel_was_pressed = false;
+static uint32_t bootsel_last_poll_ms = 0;
+static uint32_t bootsel_last_toggle_ms = 0;
 static uint32_t synced_seconds_of_day = 0;
 static uint64_t synced_at_us = 0;
 
@@ -155,6 +162,9 @@ static bool set_schedule_from_report(uint8_t const *buffer, uint16_t offset, uin
 }
 
 static bool schedule_allows_activity(void) {
+    if (ghost_paused) {
+        return false;
+    }
     if (!runtime_config.schedule_enabled) {
         return true;
     }
@@ -173,6 +183,57 @@ static bool schedule_allows_activity(void) {
     }
 
     return true;
+}
+
+static bool __no_inline_not_in_flash_func(bootsel_button_pressed)(void) {
+#if GHOST_BOOTSEL_PAUSE_ENABLED
+    const uint cs_pin_index = 1u;
+    uint32_t flags = save_and_disable_interrupts();
+
+    hw_write_masked(&ioqspi_hw->io[cs_pin_index].ctrl,
+                    GPIO_OVERRIDE_LOW << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
+                    IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
+
+    for (volatile int i = 0; i < 1000; ++i) {
+    }
+
+#ifdef __ARM_ARCH_6M__
+    const uint32_t cs_bit = 1u << 1u;
+#else
+    const uint32_t cs_bit = SIO_GPIO_HI_IN_QSPI_CSN_BITS;
+#endif
+    bool cs_high = (sio_hw->gpio_hi_in & cs_bit) != 0u;
+
+    hw_write_masked(&ioqspi_hw->io[cs_pin_index].ctrl,
+                    GPIO_OVERRIDE_NORMAL << IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_LSB,
+                    IO_QSPI_GPIO_QSPI_SS_CTRL_OEOVER_BITS);
+
+    restore_interrupts(flags);
+
+    return !cs_high;
+#else
+    return false;
+#endif
+}
+
+static void pause_button_task(void) {
+#if GHOST_BOOTSEL_PAUSE_ENABLED
+    uint32_t now_ms = time_us_32() / 1000u;
+    if ((uint32_t)(now_ms - bootsel_last_poll_ms) < GHOST_BOOTSEL_POLL_MS) {
+        return;
+    }
+    bootsel_last_poll_ms = now_ms;
+
+    bool pressed = bootsel_button_pressed();
+    if (pressed && !bootsel_was_pressed &&
+        (uint32_t)(now_ms - bootsel_last_toggle_ms) >= GHOST_BOOTSEL_DEBOUNCE_MS) {
+        ghost_paused = !ghost_paused;
+        bootsel_last_toggle_ms = now_ms;
+        board_led_write(ghost_paused);
+        activity_led_active = false;
+    }
+    bootsel_was_pressed = pressed;
+#endif
 }
 
 void ghost_handle_feature_report(uint8_t const *buffer, uint16_t bufsize) {
@@ -210,7 +271,8 @@ uint16_t ghost_fill_feature_report(uint8_t *buffer, uint16_t reqlen) {
     bool active = schedule_allows_activity();
     buffer[6] = (runtime_config.time_valid ? 0x01u : 0u) |
                 (runtime_config.schedule_enabled ? 0x02u : 0u) |
-                (active ? 0x04u : 0u);
+                (active ? 0x04u : 0u) |
+                (ghost_paused ? 0x08u : 0u);
 
     if (runtime_config.time_valid) {
         uint32_t seconds = current_seconds_of_day();
@@ -238,6 +300,10 @@ static void activity_led_pulse(void) {
 }
 
 static void activity_led_task(void) {
+    if (ghost_paused) {
+        board_led_write(true);
+        return;
+    }
     if (activity_led_active && time_reached(activity_led_off_at)) {
         board_led_write(false);
         activity_led_active = false;
@@ -258,6 +324,10 @@ static uint32_t clamp_delay(uint32_t minimum_ms, uint32_t maximum_ms) {
     }
 
     return minimum_ms + (uint32_t)(ghost_rand_32() % (maximum_ms - minimum_ms + 1u));
+}
+
+static absolute_time_t random_timeout(uint32_t minimum_ms, uint32_t maximum_ms) {
+    return make_timeout_time_ms(clamp_delay(minimum_ms, maximum_ms));
 }
 
 static int random_range(int minimum, int maximum) {
@@ -319,6 +389,7 @@ static void usb_sleep_ms(uint32_t duration_ms) {
     absolute_time_t deadline = make_timeout_time_ms(duration_ms);
     while (!time_reached(deadline)) {
         tud_task();
+        pause_button_task();
         activity_led_task();
         sleep_ms(1);
     }
@@ -348,6 +419,10 @@ static void move_mouse_humanly(int dest_x, int dest_y) {
     float wobble_y = wobble_on_x ? 0.0f : (float)wobble;
 
     for (uint32_t step = 1; step <= GHOST_MOVE_STEPS; step++) {
+        if (!schedule_allows_activity()) {
+            break;
+        }
+
         float raw_t = (float)step / (float)GHOST_MOVE_STEPS;
         float t = smoothstep(raw_t);
         float inv_t = 1.0f - t;
@@ -377,18 +452,31 @@ static void move_mouse_humanly(int dest_x, int dest_y) {
 
 static void jitter_mouse(void) {
     for (uint32_t i = 0; i < GHOST_JITTER_STEPS; i++) {
+        if (!schedule_allows_activity()) {
+            break;
+        }
         send_mouse_report((int8_t)random_range(-1, 1), (int8_t)random_range(-1, 1), 0);
         usb_sleep_ms(GHOST_JITTER_DELAY_MS);
     }
 }
 
 static void nudge_mouse(void) {
+    if (!schedule_allows_activity()) {
+        return;
+    }
     send_mouse_report(0, 1, 0);
     usb_sleep_ms(200);
+    if (!schedule_allows_activity()) {
+        return;
+    }
     send_mouse_report(0, -1, 0);
 }
 
-static void simulate_activity(void) {
+static void simulate_mouse_activity(void) {
+    if (!schedule_allows_activity()) {
+        return;
+    }
+
     ghost_action_t action = (ghost_action_t)random_range(ACTION_MOVE, ACTION_NUDGE);
 
     switch (action) {
@@ -404,10 +492,6 @@ static void simulate_activity(void) {
             nudge_mouse();
             break;
     }
-
-    if (GHOST_DEFAULT_PROFILE == GHOST_PROFILE_MOUSE_AND_KEYBOARD) {
-        send_random_keyboard_action();
-    }
 }
 
 int main(void) {
@@ -416,15 +500,30 @@ int main(void) {
 
     usb_sleep_ms(GHOST_STARTUP_DELAY_MS);
 
+    absolute_time_t next_mouse_at = random_timeout(GHOST_MIN_IDLE_MS, GHOST_MAX_IDLE_MS);
+    absolute_time_t next_keyboard_at = random_timeout(GHOST_KEY_MIN_IDLE_MS, GHOST_KEY_MAX_IDLE_MS);
+
     while (true) {
         tud_task();
+        pause_button_task();
         activity_led_task();
 
         if (tud_mounted() && schedule_allows_activity()) {
-            simulate_activity();
-            usb_sleep_ms(clamp_delay(GHOST_MIN_IDLE_MS, GHOST_MAX_IDLE_MS));
+            if (time_reached(next_mouse_at)) {
+                simulate_mouse_activity();
+                next_mouse_at = random_timeout(GHOST_MIN_IDLE_MS, GHOST_MAX_IDLE_MS);
+            }
+
+            if (GHOST_DEFAULT_PROFILE == GHOST_PROFILE_MOUSE_AND_KEYBOARD &&
+                schedule_allows_activity() && time_reached(next_keyboard_at)) {
+                send_random_keyboard_action();
+                next_keyboard_at = random_timeout(GHOST_KEY_MIN_IDLE_MS, GHOST_KEY_MAX_IDLE_MS);
+            }
         } else {
-            sleep_ms(10);
+            next_mouse_at = random_timeout(GHOST_MIN_IDLE_MS, GHOST_MAX_IDLE_MS);
+            next_keyboard_at = random_timeout(GHOST_KEY_MIN_IDLE_MS, GHOST_KEY_MAX_IDLE_MS);
         }
+
+        sleep_ms(10);
     }
 }

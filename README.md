@@ -21,7 +21,7 @@ devices. This project replaces those pieces with native firmware.
 - Logitech-style VID/PID and product strings
 - Mouse movement using the original Bezier-style behavior
 - Random jitter/nudge actions
-- Keyboard report helper present, but disabled by default
+- Independent random keyboard action emitter
 - UF2 firmware build through Pico SDK
 
 Scheduling from the original `config.ini` is intentionally not copied yet. A
@@ -109,6 +109,24 @@ Or use the upload wrappers:
 ./scripts/upload_pico2.sh
 ```
 
+## GitHub Actions
+
+The repository includes a firmware workflow that builds both Pico targets on
+pushes, pull requests, and manual runs. Each run uploads UF2 and ELF artifacts:
+
+- `PicoGhostHID-pico1.uf2`
+- `PicoGhostHID-pico1.elf`
+- `PicoGhostHID-pico2.uf2`
+- `PicoGhostHID-pico2.elf`
+
+Pushing a tag that starts with `v` creates an automated GitHub release and
+attaches those firmware files:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
 ## Configuration
 
 Edit `include/ghost_config.h` before building.
@@ -118,16 +136,26 @@ Useful knobs:
 - `GHOST_STARTUP_DELAY_MS`
 - `GHOST_MIN_IDLE_MS`
 - `GHOST_MAX_IDLE_MS`
+- `GHOST_KEY_MIN_IDLE_MS`
+- `GHOST_KEY_MAX_IDLE_MS`
 - `GHOST_MOVE_CONTROL_JITTER`
 - `GHOST_MOVE_WOBBLE_MAX`
 - `GHOST_DEFAULT_PROFILE`
 - `GHOST_USB_SERIAL`, passed to CMake as the HID USB serial string
 - `GHOST_ACTIVITY_LED_PULSE_MS`
+- `GHOST_BOOTSEL_PAUSE_ENABLED`
 
-The default profile sends mouse activity and a brief random keyboard action
-after each mouse activity burst. The current key action set is Space, Escape,
-Tab, Alt+Tab, Windows/Super, Shift+Tab, and Ctrl+Esc. Keep in mind the key
-press goes to whichever host window is focused.
+The default profile runs mouse movement and keyboard activity as separate
+random emitters. The current key action set is Space, Escape, Tab, Alt+Tab,
+Windows/Super, Shift+Tab, and Ctrl+Esc. Keep in mind the key press goes to
+whichever host window is focused.
+
+With `GHOST_BOOTSEL_PAUSE_ENABLED` set, pressing the Pico `BOOTSEL` button
+while the firmware is running toggles pause/resume. Paused mode suppresses HID
+activity and holds the onboard LED on. This uses the Pico SDK/TinyUSB
+flash-chip-select sampling trick rather than a normal GPIO input, so it is best
+treated as a temporary convenience. A dedicated GPIO button is the more robust
+long-term physical pause control.
 
 The default USB serial is `fedcba9876543210`, matching the original GhostHID
 fallback value. You can override it at configure time:

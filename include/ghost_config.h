@@ -8,6 +8,8 @@
 #define GHOST_STARTUP_DELAY_MS     (10000u)
 #define GHOST_MIN_IDLE_MS          (15000u)
 #define GHOST_MAX_IDLE_MS          (60000u)
+#define GHOST_KEY_MIN_IDLE_MS      (45000u)
+#define GHOST_KEY_MAX_IDLE_MS      (180000u)
 
 #define GHOST_MOVE_MIN_DELTA       (-100)
 #define GHOST_MOVE_MAX_DELTA       (100)
@@ -24,12 +26,16 @@
 #define GHOST_KEY_MIN_HOLD_MS      (40u)
 #define GHOST_KEY_MAX_HOLD_MS      (120u)
 
+#define GHOST_BOOTSEL_PAUSE_ENABLED (1u)
+#define GHOST_BOOTSEL_POLL_MS       (20u)
+#define GHOST_BOOTSEL_DEBOUNCE_MS   (300u)
+
 typedef enum {
     GHOST_PROFILE_MOUSE_ONLY = 0,
     GHOST_PROFILE_MOUSE_AND_KEYBOARD = 1,
 } ghost_profile_t;
 
-// Keyboard mode sends a brief Space key press after each mouse activity burst.
+// Keyboard mode runs a separate random key-action emitter from mouse movement.
 #define GHOST_DEFAULT_PROFILE GHOST_PROFILE_MOUSE_AND_KEYBOARD
 
 #endif

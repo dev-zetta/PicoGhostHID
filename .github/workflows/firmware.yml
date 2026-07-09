@@ -1,0 +1,93 @@
+name: Firmware
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: pico
+            name: Pico 1
+            build_dir: pico1
+            artifact: PicoGhostHID-pico1
+          - board: pico2
+            name: Pico 2
+            build_dir: pico2
+            artifact: PicoGhostHID-pico2
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            git \
+            python3 \
+            gcc-arm-none-eabi \
+            binutils-arm-none-eabi \
+            libnewlib-arm-none-eabi \
+            libnewlib-dev \
+            pkg-config \
+            libusb-1.0-0-dev
+
+      - name: Fetch Pico SDK
+        run: ./scripts/fetch_sdk.sh
+
+      - name: Build firmware
+        run: ./scripts/build.sh ${{ matrix.board }}
+
+      - name: Stage firmware
+        run: |
+          mkdir -p dist
+          cp "build/${{ matrix.build_dir }}/PicoGhostHID.uf2" "dist/${{ matrix.artifact }}.uf2"
+          cp "build/${{ matrix.build_dir }}/PicoGhostHID.elf" "dist/${{ matrix.artifact }}.elf"
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.uf2
+            dist/*.elf
