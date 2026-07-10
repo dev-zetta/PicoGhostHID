@@ -1,33 +1,35 @@
 # PicoGhostHID
 
-PicoGhostHID is a Raspberry Pi Pico rewrite of the original GhostHID idea. It
-does not use Linux USB gadget mode. The Pico firmware presents itself directly
-as a USB HID keyboard/mouse device through TinyUSB.
+PicoGhostHID is native Raspberry Pi Pico firmware that makes a Pico appear as a
+USB HID keyboard and mouse. It can periodically move the mouse, send small
+random keyboard actions, follow an active-hours schedule, and pause/resume from
+the Pico `BOOTSEL` button.
 
-## Why This Is a Rewrite
+It runs directly on Pico hardware through TinyUSB. No Linux USB gadget mode,
+Python runtime, SSH setup, or host-side service is required after flashing.
 
-The original GhostHID project targets Raspberry Pi Zero Linux:
+## Download Firmware
 
-- `setup_hid.sh` creates a ConfigFS USB gadget under `/sys/kernel/config`.
-- `ghost_sim.py` writes HID reports to `/dev/hidg0` and `/dev/hidg1`.
-- The installer deploys over SSH to a Linux Pi.
+Ready-built UF2 firmware files are published in the GitHub Releases section.
+Download the file for your board, put the Pico into `BOOTSEL` mode, and copy
+the UF2 onto the mounted boot drive:
 
-The Pico has no Linux kernel, shell, SSH service, Python runtime, or `/dev/hidg`
-devices. This project replaces those pieces with native firmware.
+- `PicoGhostHID-pico1.uf2` for Raspberry Pi Pico / RP2040
+- `PicoGhostHID-pico2.uf2` for Raspberry Pi Pico 2 / RP2350
 
-## Current Status
+## Features
 
-- USB HID composite descriptor: keyboard and mouse
+- USB HID composite keyboard and mouse device
+- Pico 1 and Pico 2 firmware builds
 - Logitech-style VID/PID and product strings
-- Mouse movement using the original Bezier-style behavior
-- Random jitter/nudge actions
-- Independent random keyboard action emitter
-- UF2 firmware build through Pico SDK
+- Smooth Bezier-style mouse movement with jitter/nudge actions
+- Independent randomized keyboard action emitter
+- Active-hours and lunch-break schedule configured over HID feature reports
+- `BOOTSEL` button pause/resume with LED status
+- GitHub Actions builds and tagged release artifacts
 
-Scheduling from the original `config.ini` is intentionally not copied yet. A
-plain Pico has no battery-backed real-time clock, so wall-clock shift and lunch
-logic needs either host-provided time, persisted configuration, or an external
-RTC module.
+The Pico has no battery-backed clock by default. Time and schedule settings are
+volatile and must be synced again after reset or unplug.
 
 ## Build
 
