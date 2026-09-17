@@ -12,6 +12,7 @@
 #include "tusb.h"
 
 #include "ghost_config.h"
+#include "ghost_led.h"
 #include "ghost_runtime.h"
 #include "usb_descriptors.h"
 
@@ -27,13 +28,8 @@ typedef struct {
 } ghost_key_action_t;
 
 static const ghost_key_action_t key_actions[] = {
-    {0, HID_KEY_SPACE},
-    {0, HID_KEY_ESCAPE},
-    {0, HID_KEY_TAB},
-    {KEYBOARD_MODIFIER_LEFTALT, HID_KEY_TAB},
-    {KEYBOARD_MODIFIER_LEFTGUI, 0},
-    {KEYBOARD_MODIFIER_LEFTSHIFT, HID_KEY_TAB},
-    {KEYBOARD_MODIFIER_LEFTCTRL, HID_KEY_ESCAPE},
+    {KEYBOARD_MODIFIER_LEFTSHIFT, HID_KEY_F13},  // harmless in almost every app
+    {KEYBOARD_MODIFIER_LEFTSHIFT, HID_KEY_F14},
 };
 
 static absolute_time_t activity_led_off_at;
@@ -229,7 +225,7 @@ static void pause_button_task(void) {
         (uint32_t)(now_ms - bootsel_last_toggle_ms) >= GHOST_BOOTSEL_DEBOUNCE_MS) {
         ghost_paused = !ghost_paused;
         bootsel_last_toggle_ms = now_ms;
-        board_led_write(ghost_paused);
+        ghost_led_write(ghost_paused ? GHOST_LED_PAUSED : GHOST_LED_OFF);
         activity_led_active = false;
     }
     bootsel_was_pressed = pressed;
@@ -294,18 +290,18 @@ uint16_t ghost_fill_feature_report(uint8_t *buffer, uint16_t reqlen) {
 }
 
 static void activity_led_pulse(void) {
-    board_led_write(true);
+    ghost_led_write(GHOST_LED_ACTIVITY);
     activity_led_active = true;
     activity_led_off_at = make_timeout_time_ms(GHOST_ACTIVITY_LED_PULSE_MS);
 }
 
 static void activity_led_task(void) {
     if (ghost_paused) {
-        board_led_write(true);
+        ghost_led_write(GHOST_LED_PAUSED);
         return;
     }
     if (activity_led_active && time_reached(activity_led_off_at)) {
-        board_led_write(false);
+        ghost_led_write(GHOST_LED_OFF);
         activity_led_active = false;
     }
 }
@@ -497,6 +493,7 @@ static void simulate_mouse_activity(void) {
 int main(void) {
     board_init();
     tusb_init();
+    ghost_led_init();
 
     usb_sleep_ms(GHOST_STARTUP_DELAY_MS);
 

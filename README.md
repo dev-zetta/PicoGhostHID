@@ -16,14 +16,18 @@ the UF2 onto the mounted boot drive:
 
 - `PicoGhostHID-pico1.uf2` for Raspberry Pi Pico / RP2040
 - `PicoGhostHID-pico2.uf2` for Raspberry Pi Pico 2 / RP2350
+- `PicoGhostHID-rp2040zero.uf2` for Waveshare RP2040-Zero
 
 ## Features
 
 - USB HID composite keyboard and mouse device
-- Pico 1 and Pico 2 firmware builds
+- Pico 1, Pico 2, and Waveshare RP2040-Zero firmware builds
 - Logitech-style VID/PID and product strings
 - Smooth Bezier-style mouse movement with jitter/nudge actions
-- Independent randomized keyboard action emitter
+- Independent randomized keyboard action emitter (default keys are
+  unbound function keys, safe to run with a document focused)
+- Status LED: plain on/off on Pico/Pico2, green activity pulse / solid
+  red paused on the RP2040-Zero's onboard WS2812
 - Active-hours and lunch-break schedule configured over HID feature reports
 - `BOOTSEL` button pause/resume with LED status
 - GitHub Actions builds and tagged release artifacts
@@ -70,6 +74,7 @@ Fetch a local SDK checkout, then build:
 ./scripts/fetch_sdk.sh
 ./scripts/build_pico1.sh
 ./scripts/build_pico2.sh
+./scripts/build_rp2040zero.sh
 ```
 
 By default, `fetch_sdk.sh` checks out SDK release `2.3.0` into
@@ -91,6 +96,7 @@ The firmware will be produced as one of:
 ```text
 build/pico1/PicoGhostHID.uf2
 build/pico2/PicoGhostHID.uf2
+build/rp2040zero/PicoGhostHID.uf2
 ```
 
 If CMake was previously configured with a different compiler or toolchain path,
@@ -109,6 +115,7 @@ Or use the upload wrappers:
 ```sh
 ./scripts/upload_pico1.sh
 ./scripts/upload_pico2.sh
+./scripts/upload_rp2040zero.sh
 ```
 
 ## GitHub Actions
@@ -130,6 +137,12 @@ git push origin v0.1.0
 ```
 
 ## Configuration
+
+`CFG_TUD_HID_EP_BUFSIZE` in `include/tusb_config.h` must be at least as large
+as `GHOST_CONFIG_FEATURE_SIZE` (63 bytes). TinyUSB clamps the report length it
+hands to `tud_hid_get_report_cb()`/`tud_hid_set_report_cb()` to this buffer
+size, so a smaller value silently truncates the HID feature-report reads that
+`tools/picoghost_config.py` relies on for `status`/`configure`.
 
 Edit `include/ghost_config.h` before building.
 
@@ -203,12 +216,15 @@ PicoGhostHID/
   pico_sdk_import.cmake
   include/
     ghost_config.h
+    ghost_led.h
     ghost_runtime.h
     tusb_config.h
     usb_descriptors.h
   src/
     main.c
     usb_descriptors.c
+    ghost_led.c
+    ws2812.pio
   tools/
     picoghost_config.py
 ```

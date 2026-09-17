@@ -14,7 +14,10 @@ set(GHOST_USB_SERIAL "fedcba9876543210" CACHE STRING "USB serial number string e
 add_executable(PicoGhostHID
     src/main.c
     src/usb_descriptors.c
+    src/ghost_led.c
 )
+
+pico_generate_pio_header(PicoGhostHID ${CMAKE_CURRENT_LIST_DIR}/src/ws2812.pio)
 
 target_compile_definitions(PicoGhostHID PRIVATE
     GHOST_USB_SERIAL="${GHOST_USB_SERIAL}"
@@ -28,6 +31,7 @@ target_link_libraries(PicoGhostHID
     pico_stdlib
     tinyusb_device
     tinyusb_board
+    hardware_pio
 )
 
 pico_enable_stdio_usb(PicoGhostHID 0)
