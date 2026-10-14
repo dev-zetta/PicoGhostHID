@@ -2,4 +2,4 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "${script_dir}/build.sh" waveshare_rp2040_zero
+exec "${script_dir}/build.sh" rp2040zero "$@"

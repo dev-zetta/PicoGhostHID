@@ -27,4 +27,4 @@ echo "  ${sdk_dir}"
 echo
 echo "Use it with:"
 echo "  export PICO_SDK_PATH=${sdk_dir}"
-echo "  ./scripts/build.sh"
+echo "  ./scripts/build.sh all"

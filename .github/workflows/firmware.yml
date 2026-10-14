@@ -21,56 +21,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - board: pico
+          - board: pico1
             name: Pico 1
-            build_dir: pico1
-            artifact: PicoGhostHID-pico1
           - board: pico2
             name: Pico 2
-            build_dir: pico2
-            artifact: PicoGhostHID-pico2
-          - board: waveshare_rp2040_zero
+          - board: rp2040zero
             name: Waveshare RP2040-Zero
-            build_dir: rp2040zero
-            artifact: PicoGhostHID-rp2040zero
 
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            git \
-            python3 \
-            gcc-arm-none-eabi \
-            binutils-arm-none-eabi \
-            libnewlib-arm-none-eabi \
-            libnewlib-dev \
-            pkg-config \
-            libusb-1.0-0-dev
-
-      - name: Fetch Pico SDK
-        run: ./scripts/fetch_sdk.sh
-
-      - name: Build firmware
-        run: ./scripts/build.sh ${{ matrix.board }}
-
-      - name: Stage firmware
-        run: |
-          mkdir -p dist
-          cp "build/${{ matrix.build_dir }}/PicoGhostHID.uf2" "dist/${{ matrix.artifact }}.uf2"
-          cp "build/${{ matrix.build_dir }}/PicoGhostHID.elf" "dist/${{ matrix.artifact }}.elf"
-          cp LICENSE dist/LICENSE.txt
-          cp LICENSES/BSD-3-Clause-ws2812.txt dist/BSD-3-Clause-ws2812.txt
+      - name: Build firmware with Docker
+        run: ./scripts/build.sh --docker ${{ matrix.board }}
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: PicoGhostHID-${{ matrix.board }}
           path: dist/*
           if-no-files-found: error
 
