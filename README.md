@@ -10,7 +10,7 @@ Python runtime, SSH setup, or host-side service is required after flashing.
 
 ## Download Firmware
 
-Ready-built UF2 firmware files are published in the GitHub Releases section. Download the file for your board, put the board into `BOOTSEL` mode, and copy the UF2 onto the mounted boot drive. Waveshare RP2040-Zero support is available from source and workflow artifacts; its UF2 will be included in the next tagged release.
+Ready-built UF2 firmware files for all three boards are published in [release v0.1.1](https://github.com/dev-zetta/PicoGhostHID/releases/tag/v0.1.1). Download the file for your board, put the board into `BOOTSEL` mode, and copy the UF2 onto the mounted boot drive.
 
 - `PicoGhostHID-pico1.uf2` for Raspberry Pi Pico / RP2040
 - `PicoGhostHID-pico2.uf2` for Raspberry Pi Pico 2 / RP2350
@@ -129,8 +129,8 @@ Pushing a tag that starts with `v` creates an automated GitHub release and
 attaches those firmware files:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 ## Configuration

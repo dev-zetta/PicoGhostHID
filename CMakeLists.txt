@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 include(pico_sdk_import.cmake)
 
-project(PicoGhostHID C CXX ASM)
+project(PicoGhostHID VERSION 0.1.1 LANGUAGES C CXX ASM)
 
 pico_sdk_init()
 
@@ -36,5 +36,7 @@ target_link_libraries(PicoGhostHID
 
 pico_enable_stdio_usb(PicoGhostHID 0)
 pico_enable_stdio_uart(PicoGhostHID 0)
+
+pico_set_program_version(PicoGhostHID ${PROJECT_VERSION})
 
 pico_add_extra_outputs(PicoGhostHID)
