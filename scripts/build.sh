@@ -9,8 +9,8 @@ use_docker=false
 output_dir="${project_dir}/dist"
 
 usage() {
-    echo "usage: ${0} [--docker] [--output DIR] [all|pico1|pico2|rp2040zero]"
-    echo "Pico SDK board names pico and waveshare_rp2040_zero are also accepted."
+    echo "usage: ${0} [--docker] [--output DIR] [all|pico1|pico2|rp2040zero|hbb]"
+    echo "Pico SDK board names pico, waveshare_rp2040_zero and btt_hbb are also accepted."
 }
 
 while [[ "$#" -gt 0 ]]; do
@@ -48,7 +48,7 @@ done
 
 case "${target}" in
     all)
-        boards=(pico1 pico2 rp2040zero)
+        boards=(pico1 pico2 rp2040zero hbb)
         ;;
     pico|pico1)
         target="pico1"
@@ -60,6 +60,10 @@ case "${target}" in
     waveshare_rp2040_zero|rp2040zero)
         target="rp2040zero"
         boards=(rp2040zero)
+        ;;
+    btt_hbb|hbb)
+        target="hbb"
+        boards=(hbb)
         ;;
     *)
         usage >&2
@@ -109,6 +113,7 @@ for build_name in "${boards[@]}"; do
         pico1) board=pico ;;
         pico2) board=pico2 ;;
         rp2040zero) board=waveshare_rp2040_zero ;;
+        hbb) board=btt_hbb ;;
     esac
     build_dir="${project_dir}/build/${build_name}"
     local_toolchain_dir="${project_dir}/deps/toolchain"

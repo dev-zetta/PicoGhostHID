@@ -26,7 +26,13 @@
 #define GHOST_KEY_MIN_HOLD_MS      (40u)
 #define GHOST_KEY_MAX_HOLD_MS      (120u)
 
+#ifndef GHOST_START_PAUSED
+#define GHOST_START_PAUSED          (0u)
+#endif
+
+#ifndef GHOST_BOOTSEL_PAUSE_ENABLED
 #define GHOST_BOOTSEL_PAUSE_ENABLED (1u)
+#endif
 #define GHOST_BOOTSEL_POLL_MS       (20u)
 #define GHOST_BOOTSEL_DEBOUNCE_MS   (300u)
 

@@ -3,7 +3,7 @@
 
 // Small LED abstraction so main.c doesn't need to care whether the board
 // has a plain on/off LED (Pico, Pico 2 -> board_led_write) or an
-// addressable WS2812 (Waveshare RP2040-Zero -> PIO driver below).
+// addressable WS2812 chain (Waveshare RP2040-Zero, BIGTREETECH HBB).
 typedef enum {
     GHOST_LED_OFF = 0,
     GHOST_LED_ACTIVITY,   // brief pulse on mouse/keyboard activity

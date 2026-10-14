@@ -34,10 +34,10 @@ static const ghost_key_action_t key_actions[] = {
 
 static absolute_time_t activity_led_off_at;
 static bool activity_led_active = false;
-static bool ghost_paused = false;
-static bool bootsel_was_pressed = false;
-static uint32_t bootsel_last_poll_ms = 0;
-static uint32_t bootsel_last_toggle_ms = 0;
+static bool ghost_paused = GHOST_START_PAUSED != 0u;
+static bool pause_was_pressed = false;
+static uint32_t pause_last_poll_ms = 0;
+static uint32_t pause_last_toggle_ms = 0;
 static uint32_t synced_seconds_of_day = 0;
 static uint64_t synced_at_us = 0;
 
@@ -212,23 +212,36 @@ static bool __no_inline_not_in_flash_func(bootsel_button_pressed)(void) {
 #endif
 }
 
+static void pause_button_init(void) {
+#ifdef GHOST_PAUSE_BUTTON_PIN
+    gpio_init(GHOST_PAUSE_BUTTON_PIN);
+    gpio_set_dir(GHOST_PAUSE_BUTTON_PIN, GPIO_IN);
+    gpio_pull_up(GHOST_PAUSE_BUTTON_PIN);
+#endif
+    ghost_led_write(ghost_paused ? GHOST_LED_PAUSED : GHOST_LED_OFF);
+}
+
 static void pause_button_task(void) {
-#if GHOST_BOOTSEL_PAUSE_ENABLED
+#if GHOST_BOOTSEL_PAUSE_ENABLED || defined(GHOST_PAUSE_BUTTON_PIN)
     uint32_t now_ms = time_us_32() / 1000u;
-    if ((uint32_t)(now_ms - bootsel_last_poll_ms) < GHOST_BOOTSEL_POLL_MS) {
+    if ((uint32_t)(now_ms - pause_last_poll_ms) < GHOST_BOOTSEL_POLL_MS) {
         return;
     }
-    bootsel_last_poll_ms = now_ms;
+    pause_last_poll_ms = now_ms;
 
+#ifdef GHOST_PAUSE_BUTTON_PIN
+    bool pressed = !gpio_get(GHOST_PAUSE_BUTTON_PIN);
+#else
     bool pressed = bootsel_button_pressed();
-    if (pressed && !bootsel_was_pressed &&
-        (uint32_t)(now_ms - bootsel_last_toggle_ms) >= GHOST_BOOTSEL_DEBOUNCE_MS) {
+#endif
+    if (pressed && !pause_was_pressed &&
+        (uint32_t)(now_ms - pause_last_toggle_ms) >= GHOST_BOOTSEL_DEBOUNCE_MS) {
         ghost_paused = !ghost_paused;
-        bootsel_last_toggle_ms = now_ms;
+        pause_last_toggle_ms = now_ms;
         ghost_led_write(ghost_paused ? GHOST_LED_PAUSED : GHOST_LED_OFF);
         activity_led_active = false;
     }
-    bootsel_was_pressed = pressed;
+    pause_was_pressed = pressed;
 #endif
 }
 
@@ -494,6 +507,7 @@ int main(void) {
     board_init();
     tusb_init();
     ghost_led_init();
+    pause_button_init();
 
     usb_sleep_ms(GHOST_STARTUP_DELAY_MS);
 

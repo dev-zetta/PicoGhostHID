@@ -12,20 +12,24 @@ Python runtime, SSH setup, or host-side service is required after flashing.
 
 Ready-built UF2 firmware files for all three boards are published in [release v0.1.1](https://github.com/dev-zetta/PicoGhostHID/releases/tag/v0.1.1). Download the file for your board, put the board into `BOOTSEL` mode, and copy the UF2 onto the mounted boot drive.
 
+BIGTREETECH HBB / HBB Fe V1.0 support is available from source and workflow artifacts; its UF2 will be included in the next tagged release.
+
 - `PicoGhostHID-pico1.uf2` for Raspberry Pi Pico / RP2040
 - `PicoGhostHID-pico2.uf2` for Raspberry Pi Pico 2 / RP2350
 - `PicoGhostHID-rp2040zero.uf2` for Waveshare RP2040-Zero
+- `PicoGhostHID-hbb.uf2` for BIGTREETECH HBB / HBB Fe V1.0 (source/workflow build)
 
 ## Features
 
 - USB HID composite keyboard and mouse device
-- Pico 1, Pico 2, and Waveshare RP2040-Zero firmware builds
+- Pico 1, Pico 2, Waveshare RP2040-Zero and BIGTREETECH HBB firmware builds
 - Logitech-style VID/PID and product strings
 - Smooth Bezier-style mouse movement with jitter/nudge actions
 - Independent randomized keyboard action emitter using Shift+F13 and Shift+F14
-- Status LED: plain on/off on Pico/Pico2, green activity pulse / solid red paused on the RP2040-Zero's onboard WS2812
+- Status LED: plain on/off on Pico/Pico2, green activity pulse / solid red paused on the RP2040-Zero and HBB WS2812 LEDs
 - Active-hours and lunch-break schedule configured over HID feature reports
 - `BOOTSEL` button pause/resume with LED status
+- HBB starts paused and uses its K1 key for pause/resume
 - GitHub Actions builds and tagged release artifacts
 
 The Pico has no battery-backed clock by default. Time and schedule settings are
@@ -33,11 +37,11 @@ volatile and must be synced again after reset or unplug.
 
 ## Build
 
-Use `scripts/build.sh` for both native and Docker builds. It accepts `all` (the default), `pico1`, `pico2`, or `rp2040zero`; the Pico SDK names `pico` and `waveshare_rp2040_zero` are also accepted. The existing board-specific build scripts remain compatibility wrappers around this command.
+Use `scripts/build.sh` for both native and Docker builds. It accepts `all` (the default), `pico1`, `pico2`, `rp2040zero`, or `hbb`; the Pico SDK names `pico`, `waveshare_rp2040_zero`, and `btt_hbb` are also accepted. The existing board-specific build scripts remain compatibility wrappers around this command.
 
 ### Docker
 
-Install Docker with BuildKit, then build all three boards without installing the ARM toolchain or Pico SDK on the host:
+Install Docker with BuildKit, then build all four boards without installing the ARM toolchain or Pico SDK on the host:
 
 ```sh
 ./scripts/build.sh --docker all
@@ -92,6 +96,8 @@ dist/PicoGhostHID-pico2.uf2
 dist/PicoGhostHID-pico2.elf
 dist/PicoGhostHID-rp2040zero.uf2
 dist/PicoGhostHID-rp2040zero.elf
+dist/PicoGhostHID-hbb.uf2
+dist/PicoGhostHID-hbb.elf
 dist/LICENSE.txt
 dist/BSD-3-Clause-ws2812.txt
 ```
@@ -118,11 +124,27 @@ To flash either build mode, hold the board's `BOOTSEL` button while plugging it 
 ./scripts/upload_pico1.sh
 ./scripts/upload_pico2.sh
 ./scripts/upload_rp2040zero.sh
+./scripts/upload_hbb.sh
 ```
+
+### BIGTREETECH HBB controls
+
+Build with `./scripts/build.sh --docker hbb` or `./scripts/build.sh hbb`. The HBB / HBB Fe V1.0 starts paused after every reset. All seven LEDs show solid red while paused; press K1 (the lower-right key in the manufacturer's front-view pin diagram) to resume. The LEDs turn off while idle and pulse green during activity. Press K1 again to pause. Holding a key does not repeatedly toggle the state. K2-K7 are unassigned. The rear BOOT button is reserved for entering BOOTSEL to update firmware.
+
+The custom SDK board definition is `include/boards/btt_hbb.h`. Pins follow BIGTREETECH's [HBB / HBB Fe V1.0 manual](https://github.com/bigtreetech/HBB/blob/master/BIGTREETECH%20HBB%26FE%20V1.0%20User%20Manual.pdf) and [reference config](https://github.com/bigtreetech/HBB/blob/master/sample-bigtreetech-hbb.cfg): K1-K7 use GPIO25, 26, 27, 19, 18, 13 and 12 respectively, with an active-low switch input, and the seven GRB WS2812 LEDs use GPIO20. The flash boot stage follows the manual's W25Q080 / CLKDIV 2 configuration with a conservative 1 MiB firmware address range. GPIO25 is never treated as a plain LED output.
+
+Installing this firmware replaces any existing Klipper firmware. To preserve it, enter BOOTSEL and use a USB-capable `picotool` to save and verify the current flash before flashing:
+
+```sh
+picotool save -a -v hbb-backup.bin
+picotool load -v -x dist/PicoGhostHID-hbb.uf2
+```
+
+These commands assume exactly one BOOTSEL device is connected. When using the native upload wrapper, build natively first; Docker exports can be copied directly from `dist/` to the mounted BOOTSEL drive.
 
 ## GitHub Actions
 
-The repository includes a firmware workflow that builds all three boards on pushes, pull requests, and manual runs. Each run uploads UF2 and ELF artifacts together with the license notices:
+The repository includes a firmware workflow that builds all four boards on pushes, pull requests, and manual runs. Each run uploads UF2 and ELF artifacts together with the license notices:
 
 - `PicoGhostHID-pico1.uf2`
 - `PicoGhostHID-pico1.elf`
@@ -130,6 +152,8 @@ The repository includes a firmware workflow that builds all three boards on push
 - `PicoGhostHID-pico2.elf`
 - `PicoGhostHID-rp2040zero.uf2`
 - `PicoGhostHID-rp2040zero.elf`
+- `PicoGhostHID-hbb.uf2`
+- `PicoGhostHID-hbb.elf`
 
 Pushing a tag that starts with `v` creates an automated GitHub release and
 attaches those firmware files:
@@ -158,6 +182,7 @@ Useful knobs:
 - `GHOST_USB_SERIAL`, passed to CMake as the HID USB serial string
 - `GHOST_ACTIVITY_LED_PULSE_MS`
 - `GHOST_BOOTSEL_PAUSE_ENABLED`
+- `GHOST_START_PAUSED` (HBB board default: enabled)
 
 The default profile runs mouse movement and keyboard activity as separate random emitters. Keyboard activity randomly sends Shift+F13 or Shift+F14. These avoid typing characters or switching windows with the previous defaults, but applications or global shortcuts can still bind them. Key presses go to whichever host window is focused.
 
