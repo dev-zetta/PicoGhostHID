@@ -1,0 +1,13 @@
+# Send only build inputs, never local SDKs, build caches or private config.
+*
+!CMakeLists.txt
+!pico_sdk_import.cmake
+!include/
+!include/**
+!src/
+!src/**
+!scripts/
+!scripts/**
+!LICENSE
+!LICENSES/
+!LICENSES/**

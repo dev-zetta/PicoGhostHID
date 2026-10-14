@@ -1,0 +1,11 @@
+build-essential
+ca-certificates
+cmake
+git
+python3
+gcc-arm-none-eabi
+binutils-arm-none-eabi
+libnewlib-arm-none-eabi
+libnewlib-dev
+pkg-config
+libusb-1.0-0-dev
