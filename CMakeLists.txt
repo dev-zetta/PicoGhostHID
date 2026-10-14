@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 list(APPEND PICO_BOARD_HEADER_DIRS "${CMAKE_CURRENT_LIST_DIR}/include/boards")
 include(pico_sdk_import.cmake)
 
-project(PicoGhostHID VERSION 0.1.1 LANGUAGES C CXX ASM)
+project(PicoGhostHID VERSION 0.2.0 LANGUAGES C CXX ASM)
 
 pico_sdk_init()
 
