@@ -5,8 +5,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_dir="$(cd "${script_dir}/.." && pwd)"
 board="${1:-}"
 
-if [[ "${board}" != "pico" && "${board}" != "pico2" ]]; then
-    echo "usage: ${0} <pico|pico2>" >&2
+if [[ "${board}" != "pico" && "${board}" != "pico2" && "${board}" != "waveshare_rp2040_zero" ]]; then
+    echo "usage: ${0} <pico|pico2|waveshare_rp2040_zero>" >&2
     exit 2
 fi
 
@@ -16,6 +16,9 @@ case "${board}" in
         ;;
     pico2)
         build_name="pico2"
+        ;;
+    waveshare_rp2040_zero)
+        build_name="rp2040zero"
         ;;
 esac
 

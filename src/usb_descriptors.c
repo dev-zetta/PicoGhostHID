@@ -4,6 +4,9 @@
 
 #include <string.h>
 
+_Static_assert(CFG_TUD_HID_EP_BUFSIZE >= GHOST_CONFIG_FEATURE_SIZE + 1,
+               "TinyUSB HID buffer must fit the configuration payload and report ID");
+
 #define USB_VID 0x046d
 #define USB_PID 0xc31c
 #define USB_BCD 0x0100

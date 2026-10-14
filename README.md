@@ -10,20 +10,20 @@ Python runtime, SSH setup, or host-side service is required after flashing.
 
 ## Download Firmware
 
-Ready-built UF2 firmware files are published in the GitHub Releases section.
-Download the file for your board, put the Pico into `BOOTSEL` mode, and copy
-the UF2 onto the mounted boot drive:
+Ready-built UF2 firmware files are published in the GitHub Releases section. Download the file for your board, put the board into `BOOTSEL` mode, and copy the UF2 onto the mounted boot drive. Waveshare RP2040-Zero support is available from source and workflow artifacts; its UF2 will be included in the next tagged release.
 
 - `PicoGhostHID-pico1.uf2` for Raspberry Pi Pico / RP2040
 - `PicoGhostHID-pico2.uf2` for Raspberry Pi Pico 2 / RP2350
+- `PicoGhostHID-rp2040zero.uf2` for Waveshare RP2040-Zero
 
 ## Features
 
 - USB HID composite keyboard and mouse device
-- Pico 1 and Pico 2 firmware builds
+- Pico 1, Pico 2, and Waveshare RP2040-Zero firmware builds
 - Logitech-style VID/PID and product strings
 - Smooth Bezier-style mouse movement with jitter/nudge actions
-- Independent randomized keyboard action emitter
+- Independent randomized keyboard action emitter using Shift+F13 and Shift+F14
+- Status LED: plain on/off on Pico/Pico2, green activity pulse / solid red paused on the RP2040-Zero's onboard WS2812
 - Active-hours and lunch-break schedule configured over HID feature reports
 - `BOOTSEL` button pause/resume with LED status
 - GitHub Actions builds and tagged release artifacts
@@ -70,6 +70,7 @@ Fetch a local SDK checkout, then build:
 ./scripts/fetch_sdk.sh
 ./scripts/build_pico1.sh
 ./scripts/build_pico2.sh
+./scripts/build_rp2040zero.sh
 ```
 
 By default, `fetch_sdk.sh` checks out SDK release `2.3.0` into
@@ -91,6 +92,7 @@ The firmware will be produced as one of:
 ```text
 build/pico1/PicoGhostHID.uf2
 build/pico2/PicoGhostHID.uf2
+build/rp2040zero/PicoGhostHID.uf2
 ```
 
 If CMake was previously configured with a different compiler or toolchain path,
@@ -109,17 +111,19 @@ Or use the upload wrappers:
 ```sh
 ./scripts/upload_pico1.sh
 ./scripts/upload_pico2.sh
+./scripts/upload_rp2040zero.sh
 ```
 
 ## GitHub Actions
 
-The repository includes a firmware workflow that builds both Pico targets on
-pushes, pull requests, and manual runs. Each run uploads UF2 and ELF artifacts:
+The repository includes a firmware workflow that builds all three boards on pushes, pull requests, and manual runs. Each run uploads UF2 and ELF artifacts together with the license notices:
 
 - `PicoGhostHID-pico1.uf2`
 - `PicoGhostHID-pico1.elf`
 - `PicoGhostHID-pico2.uf2`
 - `PicoGhostHID-pico2.elf`
+- `PicoGhostHID-rp2040zero.uf2`
+- `PicoGhostHID-rp2040zero.elf`
 
 Pushing a tag that starts with `v` creates an automated GitHub release and
 attaches those firmware files:
@@ -130,6 +134,8 @@ git push origin v0.1.0
 ```
 
 ## Configuration
+
+`CFG_TUD_HID_EP_BUFSIZE` in `include/tusb_config.h` must hold `GHOST_CONFIG_FEATURE_SIZE` (63 payload bytes) plus the report ID: at least 64 bytes in total. TinyUSB uses this buffer for control transfers and removes the report ID before calling `tud_hid_get_report_cb()`/`tud_hid_set_report_cb()`. A smaller buffer breaks the HID feature reports used by `tools/picoghost_config.py` for `status`/`configure`; a compile-time assertion prevents this configuration.
 
 Edit `include/ghost_config.h` before building.
 
@@ -147,17 +153,9 @@ Useful knobs:
 - `GHOST_ACTIVITY_LED_PULSE_MS`
 - `GHOST_BOOTSEL_PAUSE_ENABLED`
 
-The default profile runs mouse movement and keyboard activity as separate
-random emitters. The current key action set is Space, Escape, Tab, Alt+Tab,
-Windows/Super, Shift+Tab, and Ctrl+Esc. Keep in mind the key press goes to
-whichever host window is focused.
+The default profile runs mouse movement and keyboard activity as separate random emitters. Keyboard activity randomly sends Shift+F13 or Shift+F14. These avoid typing characters or switching windows with the previous defaults, but applications or global shortcuts can still bind them. Key presses go to whichever host window is focused.
 
-With `GHOST_BOOTSEL_PAUSE_ENABLED` set, pressing the Pico `BOOTSEL` button
-while the firmware is running toggles pause/resume. Paused mode suppresses HID
-activity and holds the onboard LED on. This uses the Pico SDK/TinyUSB
-flash-chip-select sampling trick rather than a normal GPIO input, so it is best
-treated as a temporary convenience. A dedicated GPIO button is the more robust
-long-term physical pause control.
+With `GHOST_BOOTSEL_PAUSE_ENABLED` set, pressing the board's `BOOTSEL` button while the firmware is running toggles pause/resume. Paused mode suppresses HID activity and holds the onboard LED on (solid red on the RP2040-Zero); activity pulses green on the RP2040-Zero. This uses the Pico SDK/TinyUSB flash-chip-select sampling trick rather than a normal GPIO input, so it is best treated as a temporary convenience. A dedicated GPIO button is the more robust long-term physical pause control.
 
 The default USB serial is `fedcba9876543210`, matching the original GhostHID
 fallback value. You can override it at configure time:
@@ -203,20 +201,28 @@ PicoGhostHID/
   pico_sdk_import.cmake
   include/
     ghost_config.h
+    ghost_led.h
     ghost_runtime.h
     tusb_config.h
     usb_descriptors.h
   src/
     main.c
     usb_descriptors.c
+    ghost_led.c
+    ws2812.pio
   tools/
     picoghost_config.py
 ```
 
 ## License
 
-PicoGhostHID is licensed under the GNU General Public License version 3 or
-later. See `LICENSE` for the full license text.
+PicoGhostHID is licensed under the GNU General Public License version 3 or later. See `LICENSE` for the full license text. The adapted WS2812 PIO routine retains its BSD 3-Clause notice in [LICENSES/BSD-3-Clause-ws2812.txt](LICENSES/BSD-3-Clause-ws2812.txt).
+
+## Credits
+
+- [Trotter73](https://github.com/Trotter73) contributed Waveshare RP2040-Zero support with its WS2812 status LED and build/upload scripts in [commit f282685](https://github.com/Trotter73/PicoGhostHID/commit/f2826851331850527f0187c503fe0b3a70143a87), reported and fixed the HID configuration buffer issue in [issue #1](https://github.com/dev-zetta/PicoGhostHID/issues/1), and changed the default keyboard actions to Shift+F13/F14. The integration preserves the original commit's authorship.
+- Raspberry Pi (Trading) Ltd. provided the [Pico SDK](https://github.com/raspberrypi/pico-sdk) and the [WS2812 PIO example](https://github.com/raspberrypi/pico-examples/tree/master/pio/ws2812) adapted for the onboard RGB LED.
+- [TinyUSB](https://github.com/hathach/tinyusb) provides the USB HID stack.
 
 ## Next Steps
 
