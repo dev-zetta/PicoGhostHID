@@ -1,4 +1,8 @@
 ;
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+; SPDX-License-Identifier: BSD-3-Clause
+; See LICENSES/BSD-3-Clause-ws2812.txt for the license terms.
+;
 ; WS2812 LED driver program, adapted from the Raspberry Pi Pico examples
 ; (pico-examples/pio/ws2812). Drives a single-wire addressable RGB LED
 ; (e.g. the WS2812B on the Waveshare RP2040-Zero, GPIO16).

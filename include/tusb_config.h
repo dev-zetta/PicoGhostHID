@@ -24,6 +24,7 @@ extern "C" {
 #define CFG_TUD_MIDI 0
 #define CFG_TUD_VENDOR 0
 
+// The configuration feature report needs 63 payload bytes plus its report ID.
 #define CFG_TUD_HID_EP_BUFSIZE 64
 
 #ifdef __cplusplus

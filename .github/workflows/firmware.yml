@@ -29,6 +29,10 @@ jobs:
             name: Pico 2
             build_dir: pico2
             artifact: PicoGhostHID-pico2
+          - board: waveshare_rp2040_zero
+            name: Waveshare RP2040-Zero
+            build_dir: rp2040zero
+            artifact: PicoGhostHID-rp2040zero
 
     steps:
       - name: Check out source
@@ -60,6 +64,8 @@ jobs:
           mkdir -p dist
           cp "build/${{ matrix.build_dir }}/PicoGhostHID.uf2" "dist/${{ matrix.artifact }}.uf2"
           cp "build/${{ matrix.build_dir }}/PicoGhostHID.elf" "dist/${{ matrix.artifact }}.elf"
+          cp LICENSE dist/LICENSE.txt
+          cp LICENSES/BSD-3-Clause-ws2812.txt dist/BSD-3-Clause-ws2812.txt
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
@@ -91,3 +97,4 @@ jobs:
           files: |
             dist/*.uf2
             dist/*.elf
+            dist/*.txt
