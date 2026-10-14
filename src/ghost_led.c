@@ -2,9 +2,9 @@
 
 #include "bsp/board.h"
 
-#if defined(WAVESHARE_RP2040_ZERO)
+#if defined(PICO_DEFAULT_WS2812_PIN)
 
-// --- WS2812 backend (Waveshare RP2040-Zero onboard RGB LED, GPIO16) -------
+// --- WS2812 backend (board-defined pin and chain length) -----------------
 
 #include "hardware/clocks.h"
 #include "hardware/pio.h"
@@ -21,8 +21,13 @@
 #define GHOST_LED_BRIGHTNESS 32u
 #endif
 
+#ifndef GHOST_WS2812_LED_COUNT
+#define GHOST_WS2812_LED_COUNT 1u
+#endif
+
 static PIO ghost_led_pio = pio0;
 static uint ghost_led_sm;
+static ghost_led_state_t previous_state = (ghost_led_state_t)-1;
 
 static inline void put_pixel(uint32_t grb) {
     // WS2812 shift register is left-justified in the 32-bit FIFO word.
@@ -37,22 +42,35 @@ void ghost_led_init(void) {
     uint offset = pio_add_program(ghost_led_pio, &ws2812_program);
     ghost_led_sm = pio_claim_unused_sm(ghost_led_pio, true);
     ws2812_program_init(ghost_led_pio, ghost_led_sm, offset, GHOST_WS2812_PIN, 800000.0f, false);
-    put_pixel(0);
+    ghost_led_write(GHOST_LED_OFF);
 }
 
 void ghost_led_write(ghost_led_state_t state) {
+    if (state == previous_state) {
+        return;
+    }
+
+    uint32_t color;
     switch (state) {
         case GHOST_LED_ACTIVITY:
-            put_pixel(rgb_to_grb(0, GHOST_LED_BRIGHTNESS, 0));  // green
+            color = rgb_to_grb(0, GHOST_LED_BRIGHTNESS, 0);  // green
             break;
         case GHOST_LED_PAUSED:
-            put_pixel(rgb_to_grb(GHOST_LED_BRIGHTNESS, 0, 0));  // red
+            color = rgb_to_grb(GHOST_LED_BRIGHTNESS, 0, 0);  // red
             break;
         case GHOST_LED_OFF:
         default:
-            put_pixel(0);
+            color = 0;
             break;
     }
+
+    for (uint i = 0; i < GHOST_WS2812_LED_COUNT; ++i) {
+        put_pixel(color);
+    }
+    // Allow the queued 24-bit pixels to finish (30 us each at 800 kHz),
+    // then hold the line low for the WS2812 reset/latch interval.
+    sleep_us(30u * GHOST_WS2812_LED_COUNT + 300u);
+    previous_state = state;
 }
 
 #else

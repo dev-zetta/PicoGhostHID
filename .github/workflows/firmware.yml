@@ -27,6 +27,8 @@ jobs:
             name: Pico 2
           - board: rp2040zero
             name: Waveshare RP2040-Zero
+          - board: hbb
+            name: BIGTREETECH HBB
 
     steps:
       - name: Check out source

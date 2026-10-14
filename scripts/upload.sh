@@ -18,8 +18,12 @@ case "${board}" in
         build_name="rp2040zero"
         volume_label="RPI-RP2"
         ;;
+    hbb)
+        build_name="hbb"
+        volume_label="RPI-RP2"
+        ;;
     *)
-        echo "usage: ${0} <pico1|pico2|rp2040zero>" >&2
+        echo "usage: ${0} <pico1|pico2|rp2040zero|hbb>" >&2
         exit 2
         ;;
 esac
